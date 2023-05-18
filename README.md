@@ -15,7 +15,6 @@ Welcome to the Connect Four game repository! This project is a Python implementa
 
 ## Getting Started
 
-Certainly! Here's the modified prerequisites section:
 
 ### Prerequisites
 
