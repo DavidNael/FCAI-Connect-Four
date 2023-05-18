@@ -11,7 +11,7 @@ Welcome to the Connect Four game repository! This project is a Python implementa
 
 - **Intelligent AI**: The AI player utilizes the minmax algorithm to make intelligent moves. It analyzes the game board and predicts the best possible moves to maximize its chances of winning.
 
-- **Interactive Interface**: The game provides a user-friendly interface. The board is displayed visually, and the players can easily select their moves by entering column numbers.
+- **Interactive Interface**: The game provides a user-friendly interface. The board is displayed visually, and the players can easily select their moves by clicking on the desired column.
 
 ## Getting Started
 
