@@ -48,6 +48,14 @@ def isValidLocation(board, column):
     return board[0][column] == 0
 
 
+def getAllValidLocations(board):
+    locations = []
+    for column in range(ColumnCount):
+        if isValidLocation(board, column):
+            locations.append(column)
+    return locations
+
+
 def isDraw(board):
     for i in range(ColumnCount):
         if board[0][i] == 0:
@@ -171,6 +179,71 @@ def isWiningMove(board, mainRow, mainColumn, piece):
             return True
 
 
+def evaluateWindowScore(window, piece):
+    score = 0
+    opponentPiece = 1 if piece == 2 else 2
+
+    # 1 Scoring Points For Positive Move
+    if window.count(piece) == 4:
+        score += 10000
+    elif window.count(piece) == 3 and window.count(0) == 1:
+        score += 10
+    elif window.count(piece) == 2 and window.count(0) == 2:
+        score += 5
+
+    # 1 Scoring Points For Negative Moves
+    if window.count(opponentPiece) == 3 and window.count(0) == 1:
+        score -= 1000
+    return score
+
+
+def getMoveScore(board, piece):
+    score = 0
+    # 1 Horizontal Score
+    for row in range(RowCount):
+        rowArray = [int(i) for i in list(board[row, :])]  # Get Row Of i as List
+        for column in range(ColumnCount - 3):
+            window = rowArray[column : column + 4]
+            score += evaluateWindowScore(window, piece)
+    # 2 Vertical Score
+    for column in range(ColumnCount):
+        columnArray = [int(i) for i in list(board[:, column])]  # Get Row Of i as List
+        for row in range(RowCount - 3):
+            window = columnArray[row : row + 4]
+            score += evaluateWindowScore(window, piece)
+    # 3 / Diagonal Score
+    for row in range(RowCount - 3):
+        for column in range(ColumnCount - 3):
+            window = [board[row + counter][column + counter] for counter in range(4)]
+            score += evaluateWindowScore(window, piece)
+    # 4 \ Diagonal Score
+    for row in range(RowCount - 3):
+        for column in range(ColumnCount - 3):
+            window = [
+                board[row + 3 - counter][column + counter] for counter in range(4)
+            ]
+            score += evaluateWindowScore(window, piece)
+    # 5 Center Score
+    centerArray = [int(i) for i in list(board[:, ColumnCount // 2])]
+    score += centerArray.count(piece) * 6
+    return score
+
+
+def pickBestMove(board, piece):
+    validLocations = getAllValidLocations(board)
+    bestScore = -1000
+    bestMove = random.choice(validLocations)
+    for column in validLocations:
+        simulationBoard = board.copy()
+        row = getRowPosition(simulationBoard, column)
+        putPiece(simulationBoard, row, column, piece)
+        currentScore = getMoveScore(simulationBoard, piece)
+        if currentScore > bestScore:
+            bestScore = currentScore
+            bestMove = column
+    return bestMove
+
+
 # GUI Functions
 def renderBoard(board):
     for row in range(RowCount):
@@ -257,8 +330,7 @@ while not gameOver:
                 # 3 If The Selected Column Is Not Full Of Pieces
                 if isValidLocation(board, selectedColumn):
                     nextAvailableRow = getRowPosition(board, selectedColumn)
-                    putPiece(board, nextAvailableRow,
-                             selectedColumn, playerNumber)
+                    putPiece(board, nextAvailableRow, selectedColumn, playerNumber)
 
                     # 4 If Player Placed Wining Piece
                     if isWiningMove(
@@ -266,8 +338,7 @@ while not gameOver:
                     ):
                         clearBoard()
                         label = WiningFont.render(
-                            "Player " + str(playerNumber) +
-                            " Wins !!", 1, pieceColor
+                            "Player " + str(playerNumber) + " Wins !!", 1, pieceColor
                         )
                         screen.blit(label, (20, 10))
                         print("Player " + str(playerNumber) + " Wins !!")
@@ -293,7 +364,7 @@ while not gameOver:
     if turn % 2 != 0 and not gameOver:
         pieceColor = Yellow
         playerNumber = 2
-        selectedColumn = random.randint(0, ColumnCount - 1)
+        selectedColumn = pickBestMove(board, playerNumber)
         while not isValidLocation(board, selectedColumn):
             selectedColumn = random.randint(0, ColumnCount - 1)
         pygame.time.wait(200)
