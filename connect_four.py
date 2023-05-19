@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import pygame
 import sys
@@ -218,7 +219,7 @@ def renderPlayerCircle(xPosition, color):
 
 board = createBoard()
 gameOver = False
-turn = 0
+turn = random.randint(0, 1)
 
 screen = pygame.display.set_mode(size)
 renderBoard(board)
@@ -247,41 +248,68 @@ while not gameOver:
         if event.type == pygame.MOUSEBUTTONDOWN:
             xPosition = event.pos[0]
             selectedColumn = int(math.floor(xPosition / SquareSize))
+            # 2 If Player Is Player 1 (Human)
+            if turn % 2 == 0:
+                pieceColor = Red
+                playerNumber = 1
+                # renderPlayerCircle(xPosition, Red if pieceColor == Yellow else Yellow)
 
-            renderPlayerCircle(xPosition, Red if pieceColor == Yellow else Yellow)
+                # 3 If The Selected Column Is Not Full Of Pieces
+                if isValidLocation(board, selectedColumn):
+                    nextAvailableRow = getRowPosition(board, selectedColumn)
+                    putPiece(board, nextAvailableRow,
+                             selectedColumn, playerNumber)
 
-            # 2 If The Selected Column Is Not Full Of Pieces
-            if isValidLocation(board, selectedColumn):
-                nextAvailableRow = getRowPosition(board, selectedColumn)
-                putPiece(board, nextAvailableRow, selectedColumn, playerNumber)
+                    # 4 If Player Placed Wining Piece
+                    if isWiningMove(
+                        board, nextAvailableRow, selectedColumn, playerNumber
+                    ):
+                        clearBoard()
+                        label = WiningFont.render(
+                            "Player " + str(playerNumber) +
+                            " Wins !!", 1, pieceColor
+                        )
+                        screen.blit(label, (20, 10))
+                        print("Player " + str(playerNumber) + " Wins !!")
+                        gameOver = True
 
-                # 3 If Player Placed Wining Piece
-                if isWiningMove(board, nextAvailableRow, selectedColumn, playerNumber):
-                    clearBoard()
-                    label = WiningFont.render(
-                        "Player " + str(playerNumber) + " Wins !!", 1, pieceColor
-                    )
-                    screen.blit(label, (20, 10))
-                    print("Player " + str(playerNumber) + " Wins !!")
-                    gameOver = True
-
-                # 3 If The Board Is Completely Full
-                if isDraw(board):
-                    clearBoard()
-                    label = WiningFont.render("Draw !!", 1, Gray)
-                    screen.blit(label, (180, 10))
-                    print("Draw !!")
-                    gameOver = True
-            # 2 If The Selected Column Is Full
-            else:
-                print("This Is Not A Valid Move")
-                continue
+                    # 4 If The Board Is Completely Full
+                    if isDraw(board):
+                        clearBoard()
+                        label = WiningFont.render("Draw !!", 1, Gray)
+                        screen.blit(label, (180, 10))
+                        print("Draw !!")
+                        gameOver = True
+                # 3 If The Selected Column Is Full
+                else:
+                    print("This Is Not A Valid Move")
+                    continue
 
             turn += 1
             print(board)
             renderBoard(board)
 
-            if gameOver:
-                pygame.time.wait(3000)
-
+    # 1 If It Is Player 2 Turn (AI)
+    if turn % 2 != 0 and not gameOver:
+        pieceColor = Yellow
+        playerNumber = 2
+        selectedColumn = random.randint(0, ColumnCount - 1)
+        while not isValidLocation(board, selectedColumn):
+            selectedColumn = random.randint(0, ColumnCount - 1)
+        pygame.time.wait(200)
+        nextAvailableRow = getRowPosition(board, selectedColumn)
+        putPiece(board, nextAvailableRow, selectedColumn, playerNumber)
+        if isWiningMove(board, nextAvailableRow, selectedColumn, playerNumber):
+            clearBoard()
+            label = WiningFont.render(
+                "Player " + str(playerNumber) + " Wins !!", 1, pieceColor
+            )
+            screen.blit(label, (20, 10))
+            print("Player " + str(playerNumber) + " Wins !!")
+            gameOver = True
+        turn += 1
+        print(board)
+        renderBoard(board)
+    if gameOver:
+        pygame.time.wait(3000)
 print("End Of Program.")
