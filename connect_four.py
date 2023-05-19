@@ -36,6 +36,10 @@ def createBoard():
 
 def putPiece(board, row, column, piece):
     board[row][column] = piece
+    if isWiningMove(board, row, column, piece):
+        return True
+    else:
+        return False
 
 
 def getRowPosition(board, column):
@@ -185,15 +189,15 @@ def evaluateWindowScore(window, piece):
 
     # 1 Scoring Points For Positive Move
     if window.count(piece) == 4:
-        score += 10000
+        score += 100000
     elif window.count(piece) == 3 and window.count(0) == 1:
         score += 10
     elif window.count(piece) == 2 and window.count(0) == 2:
-        score += 5
+        score += 2
 
     # 1 Scoring Points For Negative Moves
     if window.count(opponentPiece) == 3 and window.count(0) == 1:
-        score -= 1000
+        score -= 8
     return score
 
 
@@ -225,7 +229,7 @@ def getMoveScore(board, piece):
             score += evaluateWindowScore(window, piece)
     # 5 Center Score
     centerArray = [int(i) for i in list(board[:, ColumnCount // 2])]
-    score += centerArray.count(piece) * 6
+    score += centerArray.count(piece) * 3
     return score
 
 
@@ -242,6 +246,101 @@ def pickBestMove(board, piece):
             bestScore = currentScore
             bestMove = column
     return bestMove
+
+
+def isTerminalNode(board):
+    # 1 Horizontal Check
+    for row in range(RowCount):
+        rowArray = [int(i) for i in list(board[row, :])]  # Get Row Of i as List
+        for column in range(ColumnCount - 3):
+            window = rowArray[column : column + 4]
+            if window.count(1) == 4:
+                return 1
+            elif window.count(2) == 4:
+                return 2
+    # 2 Vertical Check
+    for column in range(ColumnCount):
+        columnArray = [int(i) for i in list(board[:, column])]  # Get Row Of i as List
+        for row in range(RowCount - 3):
+            window = columnArray[row : row + 4]
+            if window.count(1) == 4:
+                return 1
+            elif window.count(2) == 4:
+                return 2
+    # 3 / Diagonal Check
+    for row in range(RowCount - 3):
+        for column in range(ColumnCount - 3):
+            window = [board[row + counter][column + counter] for counter in range(4)]
+            if window.count(1) == 4:
+                return 1
+            elif window.count(2) == 4:
+                return 2
+    # 4 \ Diagonal Check
+    for row in range(RowCount - 3):
+        for column in range(ColumnCount - 3):
+            window = [
+                board[row + 3 - counter][column + counter] for counter in range(4)
+            ]
+            if window.count(1) == 4:
+                return 1
+            elif window.count(2) == 4:
+                return 2
+    # 5 Draw Check
+    if isDraw(board):
+        return 3
+    return 0
+
+
+# 1 MiniMax Algorithm
+def minimax(board, depth, alpha, beta, maximizePlayer):
+    currentState = isTerminalNode(board)
+    if depth == 0 or currentState != 0:
+        if currentState != 0:
+            if currentState == 1:
+                return (-10000, None)
+            elif currentState == 2:
+                return (10000, None)
+            else:
+                return (0, None)
+        else:
+            return (getMoveScore(board, 2), None)
+    validLocations = getAllValidLocations(board)
+    bestColumn = random.choice(validLocations)
+    if maximizePlayer:
+        score = -math.inf
+        for column in validLocations:
+            row = getRowPosition(board, column)
+            simulationBoard = board.copy()
+            if putPiece(simulationBoard, row, column, 2):
+                return (10000, column)
+            newScore = minimax(
+                simulationBoard, depth - 1, alpha, beta, not maximizePlayer
+            )[0]
+
+            if newScore > score:
+                score = newScore
+                bestColumn = column
+            alpha = max(alpha, score)
+            if alpha >= beta:
+                break
+        return (score, bestColumn)
+    else:
+        score = math.inf
+        for column in validLocations:
+            row = getRowPosition(board, column)
+            simulationBoard = board.copy()
+            if putPiece(simulationBoard, row, column, 1):
+                return (-10000, column)
+            newScore = minimax(
+                simulationBoard, depth - 1, alpha, beta, not maximizePlayer
+            )[0]
+            if newScore < score:
+                score = newScore
+                bestColumn = column
+            beta = min(beta, score)
+            if alpha >= beta:
+                break
+        return (score, bestColumn)
 
 
 # GUI Functions
@@ -334,7 +433,7 @@ while not gameOver:
 
                     # 4 If Player Placed Wining Piece
                     if isWiningMove(
-                        board, nextAvailableRow, selectedColumn, playerNumber
+                            board, nextAvailableRow, selectedColumn, playerNumber
                     ):
                         clearBoard()
                         label = WiningFont.render(
@@ -364,10 +463,10 @@ while not gameOver:
     if turn % 2 != 0 and not gameOver:
         pieceColor = Yellow
         playerNumber = 2
-        selectedColumn = pickBestMove(board, playerNumber)
+        # selectedColumn = pickBestMove(board, playerNumber)
+        score, selectedColumn = minimax(board, 6, -math.inf, math.inf, True)
         while not isValidLocation(board, selectedColumn):
             selectedColumn = random.randint(0, ColumnCount - 1)
-        pygame.time.wait(200)
         nextAvailableRow = getRowPosition(board, selectedColumn)
         putPiece(board, nextAvailableRow, selectedColumn, playerNumber)
         if isWiningMove(board, nextAvailableRow, selectedColumn, playerNumber):
