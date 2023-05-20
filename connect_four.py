@@ -3,6 +3,7 @@ import numpy as np
 import pygame
 import sys
 import math
+import time
 
 # Initialize Pygame
 pygame.init()
@@ -10,8 +11,8 @@ pygame.init()
 
 # Constant Values
 EmptyPiece = 0
-PlayerPiece = 1
-AIPiece = 2
+PlayerOnePiece = 1
+PlayerTwoPiece = 2
 RowCount = 6
 ColumnCount = 7
 SquareSize = 100
@@ -29,7 +30,7 @@ size = (width, height)
 radius = int(SquareSize / 2 - 5)
 
 # Fonts
-WiningFont = pygame.font.SysFont("monospace", 75)
+GameFont = pygame.font.SysFont("monospace", 75)
 
 
 def createBoard():
@@ -96,7 +97,7 @@ def isWiningMove(board, mainRow, mainColumn, piece):
 
 def evaluateWindowScore(window, piece):
     score = 0
-    opponentPiece = PlayerPiece if piece == AIPiece else AIPiece
+    opponentPiece = PlayerOnePiece if piece == PlayerTwoPiece else PlayerTwoPiece
 
     # 1 Scoring Points For Positive Move
     if window.count(piece) == 4:
@@ -172,11 +173,12 @@ def pickBestMove(board, piece):
 
 
 # 1 MiniMax Algorithm
-def minimax(board, depth, alpha, beta, maximizePlayer):
+def minimax(board, depth, alpha, beta, maximizePlayer, player):
     validLocations = getAllValidLocations(board)
     bestColumn = random.choice(validLocations)
+    oppositePlayer = PlayerOnePiece if player == PlayerTwoPiece else PlayerTwoPiece
     if depth == 0:
-        return (getMoveScore(board, AIPiece), bestColumn)
+        return (getMoveScore(board, player), bestColumn)
     if isEmptyBoard(board):
         return (10000, int(math.floor(ColumnCount / 2)))
     if maximizePlayer:
@@ -184,10 +186,10 @@ def minimax(board, depth, alpha, beta, maximizePlayer):
         for column in validLocations:
             row = getRowPosition(board, column)
             simulationBoard = board.copy()
-            if putPiece(simulationBoard, row, column, AIPiece):
+            if putPiece(simulationBoard, row, column, player):
                 return (10000, column)
             newScore = minimax(
-                simulationBoard, depth - 1, alpha, beta, not maximizePlayer
+                simulationBoard, depth - 1, alpha, beta, not maximizePlayer, player
             )[0]
 
             if newScore > score:
@@ -202,10 +204,10 @@ def minimax(board, depth, alpha, beta, maximizePlayer):
         for column in validLocations:
             row = getRowPosition(board, column)
             simulationBoard = board.copy()
-            if putPiece(simulationBoard, row, column, PlayerPiece):
+            if putPiece(simulationBoard, row, column, oppositePlayer):
                 return (-10000, column)
             newScore = minimax(
-                simulationBoard, depth - 1, alpha, beta, not maximizePlayer
+                simulationBoard, depth - 1, alpha, beta, not maximizePlayer, player
             )[0]
             if newScore < score:
                 score = newScore
@@ -232,7 +234,7 @@ def renderBoard(board):
             ),
             if board[row][column] == EmptyPiece:
                 circleColor = Black
-            elif board[row][column] == PlayerPiece:
+            elif board[row][column] == PlayerOnePiece:
                 circleColor = Red
             else:
                 circleColor = Yellow
@@ -252,6 +254,48 @@ def renderBoard(board):
             pygame.display.update()
 
 
+def renderMainMenu(screen):
+    # 1 Set up the font and text
+    font = pygame.font.SysFont(None, 50)
+
+    titleText = font.render("Connect 4", True, (255, 255, 255))
+    titleRect = titleText.get_rect(center=(350, 100))
+
+    twoPlayerText = font.render("Player VS Player", True, (255, 255, 255))
+    twoPlayerRect = twoPlayerText.get_rect(center=(350, 300))
+
+    oneAiOnePlayerText = font.render("Player VS AI", True, (255, 255, 255))
+    oneAiOnePlayerTextRect = oneAiOnePlayerText.get_rect(center=(350, 400))
+
+    twoAIText = font.render("AI VS AI", True, (255, 255, 255))
+    twoAIRect = twoAIText.get_rect(center=(350, 500))
+
+    # 1 Draw the menu on the screen
+    screen.fill((0, 0, 0))
+    screen.blit(titleText, titleRect)
+    screen.blit(twoPlayerText, twoPlayerRect)
+    screen.blit(oneAiOnePlayerText, oneAiOnePlayerTextRect)
+    screen.blit(twoAIText, twoAIRect)
+
+    # 1 Update the display
+    pygame.display.update()
+
+    # 1 Wait for the player to choose an option
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            elif event.type == pygame.MOUSEBUTTONUP:
+                pos = pygame.mouse.get_pos()
+                if twoPlayerRect.collidepoint(pos):
+                    return 0
+                elif oneAiOnePlayerTextRect.collidepoint(pos):
+                    return 1
+                elif twoAIRect.collidepoint(pos):
+                    return 2
+
+
 def clearBoard():
     pygame.draw.rect(screen, Black, (0, 0, width, SquareSize))
 
@@ -262,95 +306,117 @@ def renderPlayerCircle(xPosition, color):
     pygame.display.update()
 
 
+def playTurn(board, selectedColumn, pieceColor, playerNumber):
+    # 1 If The Selected Column Is Not Full Of Pieces
+    if isValidLocation(board, selectedColumn):
+        nextAvailableRow = getRowPosition(board, selectedColumn)
+
+        # 2 If Player Placed Wining Piece
+        if putPiece(board, nextAvailableRow, selectedColumn, playerNumber):
+            clearBoard()
+            label = GameFont.render(
+                "Player " + str(playerNumber) + " Wins !!", 1, pieceColor
+            )
+            screen.blit(label, (20, 10))
+            print("Player " + str(playerNumber) + " Wins !!")
+            return True
+
+        # 2 If The Board Is Completely Full
+        if isDraw(board):
+            clearBoard()
+            label = GameFont.render("Draw !!", 1, Gray)
+            screen.blit(label, (180, 10))
+            print("Draw !!")
+            return True
+    # 1 If The Selected Column Is Full
+    else:
+        print("This Is Not A Valid Move")
+    return False
+
+
+# 1 Initialize the Game Window
+screen = pygame.display.set_mode(size)
+
+# 1 Initialize Game Option
+gameOption = renderMainMenu(screen)
 board = createBoard()
-gameOver = False
+isGameOver = False
 turn = random.randint(0, 1)
 
-screen = pygame.display.set_mode(size)
+clearBoard()
 renderBoard(board)
 
-
-while not gameOver:
+while not isGameOver:
     for event in pygame.event.get():
         # 1 Get Current Turn
         if turn % 2 == 0:
             pieceColor = Red
-            playerNumber = PlayerPiece
+            playerNumber = PlayerOnePiece
         else:
             pieceColor = Yellow
-            playerNumber = AIPiece
+            playerNumber = PlayerTwoPiece
 
         # 1 If Player Exit The Game
         if event.type == pygame.QUIT:
             sys.exit()
 
         # 1 If Player Move The Mouse
-        if event.type == pygame.MOUSEMOTION:
+        if event.type == pygame.MOUSEMOTION and gameOption != 2:
             xPosition = event.pos[0]
             renderPlayerCircle(xPosition, pieceColor)
 
-        # 1 If Player Press The Mouse
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        # 1 If It Is Human Player
+        if event.type == pygame.MOUSEBUTTONDOWN and (
+            gameOption == 0 or gameOption == 1
+        ):
             xPosition = event.pos[0]
             selectedColumn = int(math.floor(xPosition / SquareSize))
-            # 2 If Player Is Player 1 (Human)
+
+            # 2 If Player Is Player 1
             if turn % 2 == 0:
                 pieceColor = Red
-                playerNumber = PlayerPiece
-                # renderPlayerCircle(xPosition, Red if pieceColor == Yellow else Yellow)
+                playerNumber = PlayerOnePiece
 
-                # 3 If The Selected Column Is Not Full Of Pieces
-                if isValidLocation(board, selectedColumn):
-                    nextAvailableRow = getRowPosition(board, selectedColumn)
+            # 2 If Player Is Player 2
+            else:
+                pieceColor = Yellow
+                playerNumber = PlayerTwoPiece
 
-                    # 4 If Player Placed Wining Piece
-                    if putPiece(board, nextAvailableRow, selectedColumn, playerNumber):
-                        clearBoard()
-                        label = WiningFont.render(
-                            "Player " + str(playerNumber) + " Wins !!", 1, pieceColor
-                        )
-                        screen.blit(label, (20, 10))
-                        print("Player " + str(playerNumber) + " Wins !!")
-                        gameOver = True
+            # 2 Render Second Piece When First piece Is Dropped
+            if gameOption == 0:
+                renderPlayerCircle(xPosition, Red if pieceColor == Yellow else Yellow)
 
-                    # 4 If The Board Is Completely Full
-                    if isDraw(board):
-                        clearBoard()
-                        label = WiningFont.render("Draw !!", 1, Gray)
-                        screen.blit(label, (180, 10))
-                        print("Draw !!")
-                        gameOver = True
-                # 3 If The Selected Column Is Full
-                else:
-                    print("This Is Not A Valid Move")
-                    continue
+            # 2 Put The Piece
+            isGameOver = playTurn(board, selectedColumn, pieceColor, playerNumber)
 
             turn += 1
             print(board)
             renderBoard(board)
 
-    # 1 If It Is Player 2 Turn (AI)
-    if turn % 2 != 0 and not gameOver:
-        pieceColor = Yellow
-        playerNumber = AIPiece
-        # selectedColumn = pickBestMove(board, playerNumber)
-        score, selectedColumn = minimax(board, 6, -math.inf, math.inf, True)
+    # 1 If It Is AI Turn
+    if not isGameOver and (gameOption == 1 or gameOption == 2):
+        if turn % 2 == 0 and gameOption == 2:
+            pieceColor = Red
+            playerNumber = PlayerOnePiece
+        elif turn % 2 != 0:
+            pieceColor = Yellow
+            playerNumber = PlayerTwoPiece
+            # selectedColumn = pickBestMove(board, playerNumber)
+        else:
+            continue
+        startTime = time.time()
+        selectedColumn = minimax(board, 6, -math.inf, math.inf, True, playerNumber)[1]
+        endTime = time.time()
+        if endTime - startTime < 0.5:
+            pygame.time.wait(500)
         print("Selected AI Column = ", selectedColumn)
         while not isValidLocation(board, selectedColumn):
             selectedColumn = random.randint(0, ColumnCount - 1)
-        nextAvailableRow = getRowPosition(board, selectedColumn)
 
-        if putPiece(board, nextAvailableRow, selectedColumn, playerNumber):
-            clearBoard()
-            label = WiningFont.render(
-                "Player " + str(playerNumber) + " Wins !!", 1, pieceColor
-            )
-            screen.blit(label, (20, 10))
-            print("Player " + str(playerNumber) + " Wins !!")
-            gameOver = True
+        isGameOver = playTurn(board, selectedColumn, pieceColor, playerNumber)
         turn += 1
         print(board)
         renderBoard(board)
-    if gameOver:
+    if isGameOver:
         pygame.time.wait(5000)
 print("End Of Program.")
